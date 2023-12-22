@@ -1,7 +1,9 @@
 'use client';
 
-import { Check, Loader2, MoreVertical, Shield, ShieldAlert, ShieldCheck, ShieldQuestion } from 'lucide-react';
 import { useState } from 'react';
+import qs from 'query-string';
+import { Check, Loader2, MoreVertical, Shield, ShieldAlert, ShieldCheck, ShieldQuestion } from 'lucide-react';
+import { MemberRole } from '@prisma/client';
 
 import {
   Dialog,
@@ -27,17 +29,18 @@ import {
     DropdownMenuTrigger,
     DropdownMenuSubTrigger
 } from '@/components/ui/dropdown-menu';
-import { MemberRole } from '@prisma/client';
+import axios from 'axios';
+import { useRouter } from 'next/navigation';
 
 const roleIconMap = {
     "GUEST": null,
     "MODERATOR": <ShieldCheck className='w-4 h-4 ml-2 text-indigo-500' />,
     "ADMIN": <ShieldAlert className='w-4 h-4 ml-2 text-rose-500' />,
-    "MEMBER": null,
 }
 
 const ManageMembersModal = () => {
-  const { isOpen, onClose, type, data } = useModal();
+  const router = useRouter();
+  const { isOpen, onClose, type, data, onOpen } = useModal();
   const [loadingId, setLoadingId] = useState<string | null>("");
   const isModalOpen = isOpen && type === 'members';
 
@@ -49,16 +52,51 @@ const ManageMembersModal = () => {
     onClose();
   };
 
-  const onRoleChange = async (memberId: string, role: MemberRole) => {
+  const onKick = async (memberId: string) => {
     setLoadingId(memberId);
+
     try {
-        // await changeRole(id, role);
+        setLoadingId(memberId);
+        const url = qs.stringifyUrl({
+            url: `/api/members/${memberId}`,
+            query: {
+                serverId: server?.id
+            }
+        });
+
+        const res = await axios.delete(url);
+
+        router.refresh()
+        onOpen("members", { server: res.data })
     } catch (error) {
         console.log(error);
     } finally {
         setLoadingId("");
     }
-  }
+  };
+
+  const onRoleChange = async (memberId: string, role: MemberRole) => {
+    setLoadingId(memberId);
+
+    try {
+        setLoadingId(memberId);
+        const url = qs.stringifyUrl({
+            url: `/api/members/${memberId}`,
+            query: {
+                serverId: server?.id
+            }
+        });
+
+        const res = await axios.patch(url, { role });
+
+        router.refresh()
+        onOpen("members", { server: res.data })
+    } catch (error) {
+        console.log(error);
+    } finally {
+        setLoadingId("");
+    }
+  };
 
   return (
     <Dialog open={isModalOpen} onOpenChange={handleClose}>
@@ -103,14 +141,18 @@ const ManageMembersModal = () => {
                                         </DropdownMenuSubTrigger>
                                         <DropdownMenuPortal>
                                             <DropdownMenuSubContent>
-                                                <DropdownMenuItem>
+                                                <DropdownMenuItem 
+                                                    onClick={() => onRoleChange(member.id, MemberRole.GUEST)}
+                                                >
                                                     <Shield className="h-4 w-4 mr-2" />
                                                     <span>Guest</span>
                                                     {member.role === MemberRole.GUEST && (
                                                         <Check className="h-4 w-4 ml-auto" />
                                                     )}
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem>
+                                                <DropdownMenuItem 
+                                                    onClick={() => onRoleChange(member.id, MemberRole.MODERATOR)}
+                                                >
                                                     <ShieldCheck className="h-4 w-4 mr-2" />
                                                     <span>Moderator</span>
                                                     {member.role === MemberRole.MODERATOR && (
@@ -121,7 +163,7 @@ const ManageMembersModal = () => {
                                         </DropdownMenuPortal>
                                     </DropdownMenuSub>
                                     <DropdownMenuSeparator />
-                                    <DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => onKick(member.id)}>
                                         Kick 
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
