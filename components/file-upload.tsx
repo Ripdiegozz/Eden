@@ -62,6 +62,7 @@ export const FileUpload = ({
         endpoint === "messageFile" &&
         typeMap.images.includes(fileType as string)
     ) {
+        console.log("Yes im an image")
         return (
             <div className='relative h-40 w-40'>
                 <Image 
